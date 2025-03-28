@@ -7,6 +7,7 @@ import (
 
 	"aigendrug.com/aigendrug-cid-2025-server/app"
 	"aigendrug.com/aigendrug-cid-2025-server/app/chat"
+	"aigendrug.com/aigendrug-cid-2025-server/app/tool"
 	"aigendrug.com/aigendrug-cid-2025-server/database"
 	"github.com/gin-contrib/cors"
 	"github.com/gin-gonic/gin"
@@ -31,7 +32,10 @@ func main() {
 	scyllaSession := database.NewScyllaSession()
 
 	router.Use(cors.New(cors.Config{
-		AllowOrigins: []string{"https://aigendrug-cid-2025.luidium.com", "http://localhost:3000", "http://aigendrug-cid-2025-server:3000"},
+		AllowOrigins: []string{
+			"https://aigendrug-cid-2025.luidium.com",
+			"http://localhost:3000",
+		},
 		AllowMethods: []string{"PUT", "POST", "GET", "DELETE", "OPTIONS"},
 		AllowHeaders: []string{
 			"Authorization",
@@ -48,6 +52,7 @@ func main() {
 	})
 
 	go chat.HandleMessages(scyllaSession)
+	go tool.HandleMessages(scyllaSession)
 
 	app.SetupRoutes(ctx, router, scyllaSession)
 
