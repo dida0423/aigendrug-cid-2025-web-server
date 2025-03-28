@@ -13,7 +13,8 @@ func SetupToolRoutes(c context.Context, router *gin.Engine, db *gocql.Session) {
 
 	toolRoutes := router.Group("/v1/tool")
 	{
-		toolRoutes.GET("/", toolController.GetTools)
-		toolRoutes.POST("/", toolController.CreateTool)
+		toolRoutes.GET("", toolController.GetTools)
+		toolRoutes.POST("", toolController.CreateTool)
+		toolRoutes.DELETE("/:id", toolController.DeleteTool)
 	}
 }
