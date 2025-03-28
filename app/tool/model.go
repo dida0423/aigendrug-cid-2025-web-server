@@ -9,15 +9,16 @@ import (
 type Tool struct {
 	ID                gocql.UUID             `json:"id"`
 	Name              string                 `json:"name"`
+	Version           string                 `json:"version"`
 	Description       string                 `json:"description"`
-	ImageURL          string                 `json:"image_url"`
 	ProviderInterface map[string]interface{} `json:"provider_interface"`
 	CreatedAt         time.Time              `json:"created_at"`
 }
 
 type CreateToolDTO struct {
+	ID                gocql.UUID             `json:"id"`
 	Name              string                 `json:"name"`
+	Version           string                 `json:"version"`
 	Description       string                 `json:"description"`
-	ImageURL          string                 `json:"image_url"`
 	ProviderInterface map[string]interface{} `json:"provider_interface"`
 }

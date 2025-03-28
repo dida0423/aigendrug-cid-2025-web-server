@@ -9,7 +9,8 @@ import (
 
 type ToolService interface {
 	ReadAllTools(rctx context.Context) ([]*Tool, error)
-	CreateTool(rctx context.Context, dto *CreateToolDTO) (gocql.UUID, error)
+	CreateTool(rctx context.Context, dto *CreateToolDTO) error
+	DeleteTool(rctx context.Context, id string) error
 }
 
 type toolService struct {
@@ -23,7 +24,7 @@ func NewToolService(c context.Context, db *gocql.Session) ToolService {
 
 func (s *toolService) ReadAllTools(rctx context.Context) ([]*Tool, error) {
 	var Tools []*Tool
-	query := s.db.Query("SELECT id, name, description, image_url, provider_interface, created_at FROM tools").WithContext(rctx)
+	query := s.db.Query("SELECT id, name, version, description, provider_interface, created_at FROM tools").WithContext(rctx)
 	iter := query.Iter()
 	defer iter.Close()
 
@@ -34,8 +35,8 @@ func (s *toolService) ReadAllTools(rctx context.Context) ([]*Tool, error) {
 		if !iter.Scan(
 			&Tool.ID,
 			&Tool.Name,
+			&Tool.Version,
 			&Tool.Description,
-			&Tool.ImageURL,
 			&providerInterfaceStr,
 			&Tool.CreatedAt,
 		) {
@@ -54,27 +55,32 @@ func (s *toolService) ReadAllTools(rctx context.Context) ([]*Tool, error) {
 	return Tools, nil
 }
 
-func (s *toolService) CreateTool(rctx context.Context, dto *CreateToolDTO) (gocql.UUID, error) {
-	newUUID, err := gocql.RandomUUID()
-	if err != nil {
-		return gocql.UUID{}, err
-	}
-
+func (s *toolService) CreateTool(rctx context.Context, dto *CreateToolDTO) error {
 	var providerInterfaceStr []byte
-	providerInterfaceStr, err = json.Marshal(dto.ProviderInterface)
+	providerInterfaceStr, err := json.Marshal(dto.ProviderInterface)
 	if err != nil {
-		return gocql.UUID{}, err
+		return err
 	}
 
 	query := s.db.Query(`
-		INSERT INTO tools (id, name, description, image_url, provider_interface, created_at)
+		INSERT INTO tools (id, name, version, description, provider_interface, created_at)
 		VALUES (?, ?, ?, ?, ?, toTimestamp(now()))
-	`, newUUID, dto.Name, dto.Description, dto.ImageURL, string(providerInterfaceStr)).WithContext(rctx)
+	`, dto.ID, dto.Name, dto.Version, dto.Description, string(providerInterfaceStr)).WithContext(rctx)
 
 	err = query.Exec()
 	if err != nil {
-		return gocql.UUID{}, err
+		return err
 	}
 
-	return newUUID, nil
+	return nil
+}
+
+func (s *toolService) DeleteTool(rctx context.Context, id string) error {
+	query := s.db.Query("DELETE FROM tools WHERE id = ?", id).WithContext(rctx)
+	err := query.Exec()
+	if err != nil {
+		return err
+	}
+
+	return nil
 }

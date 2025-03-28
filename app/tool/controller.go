@@ -4,6 +4,7 @@ import (
 	"net/http"
 
 	"github.com/gin-gonic/gin"
+	"github.com/gocql/gocql"
 )
 
 type ToolController struct {
@@ -30,10 +31,25 @@ func (sc *ToolController) CreateTool(c *gin.Context) {
 		return
 	}
 
-	id, err := sc.toolService.CreateTool(c.Request.Context(), &dto)
+	err := sc.toolService.CreateTool(c.Request.Context(), &dto)
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 		return
 	}
-	c.JSON(http.StatusCreated, gin.H{"tool_id": id})
+	c.JSON(http.StatusCreated, gin.H{})
+}
+
+func (sc *ToolController) DeleteTool(c *gin.Context) {
+	toolID, err := gocql.ParseUUID(c.Param("id"))
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		return
+	}
+
+	err = sc.toolService.DeleteTool(c.Request.Context(), toolID.String())
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		return
+	}
+	c.JSON(http.StatusNoContent, gin.H{})
 }
