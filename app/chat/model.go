@@ -8,8 +8,9 @@ import (
 
 const (
 	ChatMessageTypeNormal          = 0
-	ChatMessageTypeToolSuggestions = 1
-	ChatMessageTypeToolFurtherInfo = 2
+	ChatMessageTypeToolSelection   = 1
+	ChatMessageTypeToolSuggestions = 2
+	ChatMessageTypeToolFurtherInfo = 3
 )
 
 const (

@@ -2,10 +2,12 @@ package chat
 
 import (
 	"context"
+	"fmt"
 	"log"
 	"net/http"
 	"sync"
 
+	toolrouter "aigendrug.com/aigendrug-cid-2025-server/tool-router"
 	"github.com/gin-gonic/gin"
 	"github.com/gocql/gocql"
 	"github.com/gorilla/websocket"
@@ -35,10 +37,24 @@ var broadcast = make(chan ChatMessage)                         // Sync channel f
 var mutex = sync.Mutex{}                                       // Mutex for sessionClients
 
 // Replace with AgentResponse from aigendrug ai service
-func generateAIResponse(message string) string {
+func generateAIResponse(message string) (string, string) {
+	trs := toolrouter.NewToolRouterService(context.Background())
+	tool, err := trs.SelectTool(message)
+	if err != nil {
+		log.Println("Failed to select tool:", err)
+		return "", ""
+	}
+
 	client := openai.NewClient()
 	chatCompletion, err := client.Chat.Completions.New(context.TODO(), openai.ChatCompletionNewParams{
 		Messages: openai.F([]openai.ChatCompletionMessageParamUnion{
+			openai.SystemMessage(fmt.Sprintf(`
+				You are a helpful assistant that finds the best tool for the user. 
+				Extract the user intention of user and find the best tool for the user.
+				Selected Tool is %s.
+				Tell user about intention and why this tool is selected.
+				Keep kind and helpful.
+			`, tool.ToolName)),
 			openai.UserMessage(message),
 		}),
 		Model: openai.F(openai.ChatModelGPT4o),
@@ -47,7 +63,7 @@ func generateAIResponse(message string) string {
 		panic(err.Error())
 	}
 
-	return chatCompletion.Choices[0].Message.Content
+	return chatCompletion.Choices[0].Message.Content, tool.ToolID.String()
 }
 
 func WebSocketHandler(c *gin.Context, db *gocql.Session) {
@@ -145,7 +161,7 @@ func HandleMessages(db *gocql.Session) {
 
 		// If the message is from the user, generate an AI response and send it to all clients
 		if msg.Role == ChatRoleUser {
-			aiResponse := generateAIResponse(msg.Message)
+			aiResponse, selectedToolID := generateAIResponse(msg.Message)
 
 			aiMsg := ChatMessage{
 				SessionID:     msg.SessionID,
@@ -154,6 +170,14 @@ func HandleMessages(db *gocql.Session) {
 				MessageType:   msg.MessageType,
 				LinkedToolIDs: msg.LinkedToolIDs,
 			}
+			systemMsg := ChatMessage{
+				SessionID:     msg.SessionID,
+				Role:          ChatRoleSystem,
+				Message:       selectedToolID,
+				MessageType:   ChatMessageTypeToolSelection,
+				LinkedToolIDs: msg.LinkedToolIDs,
+			}
+
 			err := saveChatMessageToDB(db, &CreateChatMessageDTO{
 				SessionID:     aiMsg.SessionID,
 				Role:          aiMsg.Role,
@@ -166,10 +190,16 @@ func HandleMessages(db *gocql.Session) {
 				continue
 			}
 
-			// finishMsg is a message to indicate that the AI has finished responding.
-			// Web clients can use this message to manage the chat UI.(e.g., stop loading animation, scroll to the bottom of the chat)
-			finishMsg := map[string]interface{}{
-				"status": "finished",
+			err = saveChatMessageToDB(db, &CreateChatMessageDTO{
+				SessionID:     systemMsg.SessionID,
+				Role:          systemMsg.Role,
+				Message:       systemMsg.Message,
+				MessageType:   systemMsg.MessageType,
+				LinkedToolIDs: systemMsg.LinkedToolIDs,
+			})
+			if err != nil {
+				log.Println("Failed to save tool ID:", err)
+				continue
 			}
 
 			// Lock the mutex and send the AI response and finish message to all clients
@@ -182,7 +212,7 @@ func HandleMessages(db *gocql.Session) {
 					delete(clients, client)
 				}
 
-				err = client.WriteJSON(finishMsg)
+				err = client.WriteJSON(systemMsg)
 				if err != nil {
 					log.Println("Send Error:", err)
 					client.Close()
