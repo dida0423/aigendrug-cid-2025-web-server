@@ -98,3 +98,24 @@ func (sc *ToolController) CreateToolMessage(c *gin.Context) {
 	}
 	c.JSON(http.StatusCreated, gin.H{})
 }
+
+func (sc *ToolController) SendRequestToToolServer(c *gin.Context) {
+	toolID, err := gocql.ParseUUID(c.Param("id"))
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		return
+	}
+
+	var reqBody map[string]any
+	if err := c.ShouldBindJSON((&reqBody)); err != nil {
+		c.JSON((http.StatusBadRequest), gin.H{"error": err.Error()})
+		return
+	}
+
+	response, err := sc.toolService.SendRequestToToolServer(c.Request.Context(), toolID, reqBody)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		return
+	}
+	c.JSON(http.StatusOK, response)
+}

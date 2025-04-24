@@ -1,9 +1,15 @@
 package tool
 
 import (
+	"bytes"
 	"context"
 	"encoding/json"
+	"fmt"
+	"io"
+	"net/http"
+	"reflect"
 
+	validator "github.com/go-playground/validator/v10"
 	gocql "github.com/gocql/gocql"
 )
 
@@ -14,6 +20,7 @@ type ToolService interface {
 	DeleteTool(rctx context.Context, id gocql.UUID) error
 	ReadAllToolMessages(rctx context.Context, sessionID gocql.UUID) ([]*ToolMessage, error)
 	CreateToolMessage(rctx context.Context, dto *CreateToolMessageDTO) error
+	SendRequestToToolServer(rctx context.Context, id gocql.UUID, userRequestBody map[string]any) (string, error)
 }
 
 type toolService struct {
@@ -88,6 +95,16 @@ func (s *toolService) ReadTool(rctx context.Context, id gocql.UUID) (*Tool, erro
 
 func (s *toolService) CreateTool(rctx context.Context, dto *CreateToolDTO) error {
 	var providerInterfaceStr []byte
+
+	validate := validator.New()
+	if err := validate.Struct(dto); err != nil {
+		return fmt.Errorf("tool validation failed: %w", err)
+	}
+
+	if err := validate.Struct(dto.ProviderInterface); err != nil {
+		return fmt.Errorf("provider interface validation failed: %w", err)
+	}
+
 	providerInterfaceStr, err := json.Marshal(dto.ProviderInterface)
 	if err != nil {
 		return err
@@ -100,6 +117,7 @@ func (s *toolService) CreateTool(rctx context.Context, dto *CreateToolDTO) error
 
 	err = query.Exec()
 	if err != nil {
+		println(("Error 2"))
 		return err
 	}
 
@@ -169,4 +187,85 @@ func (s *toolService) CreateToolMessage(rctx context.Context, dto *CreateToolMes
 	}
 
 	return nil
+}
+
+func (s *toolService) SendRequestToToolServer(rctx context.Context, id gocql.UUID, userRequestBody map[string]any) (string, error) {
+	tool, err := s.ReadTool(rctx, id)
+	if err != nil {
+		return "", fmt.Errorf("failed to read tool: %w", err)
+	}
+	if tool == nil {
+		return "", fmt.Errorf("tool not found")
+	}
+
+	requestBodyJSON, err := json.Marshal(userRequestBody)
+	if err != nil {
+		return "", fmt.Errorf("failed to marshal request body: %w", err)
+	}
+
+	for _, field := range tool.ProviderInterface.RequestInterface {
+		val, exists := userRequestBody[field.ID]
+
+		if field.Required && !exists {
+			return "", fmt.Errorf("missing required field: %s", field.ID)
+		}
+
+		if !exists {
+			continue
+		}
+
+		switch field.ValueType {
+		case "string":
+			if _, ok := val.(string); !ok {
+				return "", fmt.Errorf("field %s must be a string", field.ID)
+			}
+		case "number":
+			kind := reflect.TypeOf(val).Kind()
+			if !(kind == reflect.Float64 || kind == reflect.Int || kind == reflect.Int64) {
+				return "", fmt.Errorf("field %s must be a number", field.ID)
+			}
+		case "boolean":
+			if _, ok := val.(bool); !ok {
+				return "", fmt.Errorf("field %s must be a boolean", field.ID)
+			}
+		default:
+			return "", fmt.Errorf("unsupported value type: %s", field.ValueType)
+		}
+	}
+
+	req, err := http.NewRequest(tool.ProviderInterface.RequestMethod, tool.ProviderInterface.URL, bytes.NewBuffer(requestBodyJSON))
+	if err != nil {
+		return "", fmt.Errorf("failed to create HTTP request: %w", err)
+	}
+
+	req.Header.Set("Content-Type", tool.ProviderInterface.RequestContentType)
+
+	client := &http.Client{}
+	resp, err := client.Do(req)
+	if err != nil {
+		return "", fmt.Errorf("failed to send request: %w", err)
+	}
+	defer resp.Body.Close()
+
+	respBody, err := io.ReadAll(resp.Body)
+	if err != nil {
+		return "", fmt.Errorf("failed to read response body: %w", err)
+	}
+
+	if resp.StatusCode < 200 || resp.StatusCode >= 300 {
+		fmt.Println("HTTP Request:")
+		fmt.Printf("Method: %s\n", req.Method)
+		fmt.Printf("URL: %s\n", req.URL.String())
+		fmt.Println("Headers:")
+		for key, values := range req.Header {
+			for _, value := range values {
+				fmt.Printf("  %s: %s\n", key, value)
+			}
+		}
+		fmt.Printf("Body: %s\n", string(requestBodyJSON))
+
+		return "", fmt.Errorf("received non-2xx status code: %d, response: %s", resp.StatusCode, string(respBody))
+	}
+
+	return string(respBody), nil
 }
