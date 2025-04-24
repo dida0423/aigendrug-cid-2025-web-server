@@ -189,9 +189,9 @@ func (s *toolService) CreateToolMessage(rctx context.Context, dto *CreateToolMes
 	return nil
 }
 
-func (s *toolService) SendRequestToToolServer(rctx context.Context, id gocql.UUID, requestBody []ToolInteractionElement) (string, error) {
+func (s *toolService) SendRequestToToolServer(rctx context.Context, toolID gocql.UUID, requestBody []ToolInteractionElement) (string, error) {
 	//modify user RequestBody [{interface_id: "number1", content: "10"}, {interface_id: "number2", content: "20"}, {interface_id: "operation", content: "+"}]
-	tool, err := s.ReadTool(rctx, id)
+	tool, err := s.ReadTool(rctx, toolID)
 	if err != nil {
 		return "", fmt.Errorf("failed to read tool: %w", err)
 	}
