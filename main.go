@@ -11,9 +11,19 @@ import (
 	"aigendrug.com/aigendrug-cid-2025-server/database"
 	"github.com/gin-contrib/cors"
 	"github.com/gin-gonic/gin"
+	"github.com/joho/godotenv"
 )
 
 func main() {
+	err := godotenv.Load()
+	if err != nil {
+		panic("Error loading .env file")
+	}
+
+	// Debug: Print environment variables
+	fmt.Println("RUN_MODE:", os.Getenv("RUN_MODE"))
+	fmt.Println("PORT:", os.Getenv("PORT"))
+
 	if os.Getenv("RUN_MODE") == "debug" {
 		gin.SetMode(gin.DebugMode)
 	} else {

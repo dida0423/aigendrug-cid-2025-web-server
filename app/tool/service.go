@@ -1,9 +1,15 @@
 package tool
 
 import (
+	"bytes"
 	"context"
 	"encoding/json"
+	"fmt"
+	"io"
+	"net/http"
+	"reflect"
 
+	validator "github.com/go-playground/validator/v10"
 	gocql "github.com/gocql/gocql"
 )
 
@@ -14,6 +20,7 @@ type ToolService interface {
 	DeleteTool(rctx context.Context, id gocql.UUID) error
 	ReadAllToolMessages(rctx context.Context, sessionID gocql.UUID) ([]*ToolMessage, error)
 	CreateToolMessage(rctx context.Context, dto *CreateToolMessageDTO) error
+	SendRequestToToolServer(rctx context.Context, id gocql.UUID, userRequestBody map[string]any) (string, error)
 }
 
 type toolService struct {
@@ -88,6 +95,16 @@ func (s *toolService) ReadTool(rctx context.Context, id gocql.UUID) (*Tool, erro
 
 func (s *toolService) CreateTool(rctx context.Context, dto *CreateToolDTO) error {
 	var providerInterfaceStr []byte
+
+	validate := validator.New()
+	if err := validate.Struct(dto); err != nil {
+		return fmt.Errorf("tool validation failed: %w", err)
+	}
+
+	if err := validate.Struct(dto.ProviderInterface); err != nil {
+		return fmt.Errorf("provider interface validation failed: %w", err)
+	}
+
 	providerInterfaceStr, err := json.Marshal(dto.ProviderInterface)
 	if err != nil {
 		return err
