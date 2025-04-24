@@ -69,3 +69,8 @@ type BindedElementType struct {
 	HTMLElementType string `json:"htmlElementType" validate:"required"`
 	ValueType       string `json:"valueType" validate:"required,oneof=string number boolean"`
 }
+
+type ToolInteractionElement struct {
+	Interface_id string `json:"interface_id" validate:"required"`
+	Content      any    `json:"content" validate:"required"`
+}

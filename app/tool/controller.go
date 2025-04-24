@@ -106,7 +106,7 @@ func (sc *ToolController) SendRequestToToolServer(c *gin.Context) {
 		return
 	}
 
-	var reqBody map[string]any
+	var reqBody []ToolInteractionElement
 	if err := c.ShouldBindJSON((&reqBody)); err != nil {
 		c.JSON((http.StatusBadRequest), gin.H{"error": err.Error()})
 		return

@@ -20,7 +20,7 @@ type ToolService interface {
 	DeleteTool(rctx context.Context, id gocql.UUID) error
 	ReadAllToolMessages(rctx context.Context, sessionID gocql.UUID) ([]*ToolMessage, error)
 	CreateToolMessage(rctx context.Context, dto *CreateToolMessageDTO) error
-	SendRequestToToolServer(rctx context.Context, id gocql.UUID, userRequestBody map[string]any) (string, error)
+	SendRequestToToolServer(rctx context.Context, id gocql.UUID, requestBody []ToolInteractionElement) (string, error)
 }
 
 type toolService struct {
@@ -189,7 +189,8 @@ func (s *toolService) CreateToolMessage(rctx context.Context, dto *CreateToolMes
 	return nil
 }
 
-func (s *toolService) SendRequestToToolServer(rctx context.Context, id gocql.UUID, userRequestBody map[string]any) (string, error) {
+func (s *toolService) SendRequestToToolServer(rctx context.Context, id gocql.UUID, requestBody []ToolInteractionElement) (string, error) {
+	//modify user RequestBody [{interface_id: "number1", content: "10"}, {interface_id: "number2", content: "20"}, {interface_id: "operation", content: "+"}]
 	tool, err := s.ReadTool(rctx, id)
 	if err != nil {
 		return "", fmt.Errorf("failed to read tool: %w", err)
@@ -198,39 +199,41 @@ func (s *toolService) SendRequestToToolServer(rctx context.Context, id gocql.UUI
 		return "", fmt.Errorf("tool not found")
 	}
 
-	requestBodyJSON, err := json.Marshal(userRequestBody)
-	if err != nil {
-		return "", fmt.Errorf("failed to marshal request body: %w", err)
-	}
-
+	requestBodyMap := make(map[string]any)
 	for _, field := range tool.ProviderInterface.RequestInterface {
-		val, exists := userRequestBody[field.ID]
-
-		if field.Required && !exists {
-			return "", fmt.Errorf("missing required field: %s", field.ID)
+		content, err := BodyRequestHelper(requestBody, field.ID)
+		if err != nil {
+			return "", fmt.Errorf("failed to get value for field %s", field.ID)
 		}
 
-		if !exists {
-			continue
+		if field.Required && content == nil {
+			return "", fmt.Errorf("missing required field: %s", field.ID)
 		}
 
 		switch field.ValueType {
 		case "string":
-			if _, ok := val.(string); !ok {
+			if _, ok := content.(string); !ok {
 				return "", fmt.Errorf("field %s must be a string", field.ID)
 			}
 		case "number":
-			kind := reflect.TypeOf(val).Kind()
+			kind := reflect.TypeOf(content).Kind()
 			if !(kind == reflect.Float64 || kind == reflect.Int || kind == reflect.Int64) {
 				return "", fmt.Errorf("field %s must be a number", field.ID)
 			}
 		case "boolean":
-			if _, ok := val.(bool); !ok {
+			if _, ok := content.(bool); !ok {
 				return "", fmt.Errorf("field %s must be a boolean", field.ID)
 			}
 		default:
 			return "", fmt.Errorf("unsupported value type: %s", field.ValueType)
 		}
+
+		requestBodyMap[field.ID] = content
+	}
+
+	requestBodyJSON, err := json.Marshal(requestBodyMap)
+	if err != nil {
+		return "", fmt.Errorf("failed to marshal request body: %w", err)
 	}
 
 	req, err := http.NewRequest(tool.ProviderInterface.RequestMethod, tool.ProviderInterface.URL, bytes.NewBuffer(requestBodyJSON))
@@ -253,17 +256,6 @@ func (s *toolService) SendRequestToToolServer(rctx context.Context, id gocql.UUI
 	}
 
 	if resp.StatusCode < 200 || resp.StatusCode >= 300 {
-		fmt.Println("HTTP Request:")
-		fmt.Printf("Method: %s\n", req.Method)
-		fmt.Printf("URL: %s\n", req.URL.String())
-		fmt.Println("Headers:")
-		for key, values := range req.Header {
-			for _, value := range values {
-				fmt.Printf("  %s: %s\n", key, value)
-			}
-		}
-		fmt.Printf("Body: %s\n", string(requestBodyJSON))
-
 		return "", fmt.Errorf("received non-2xx status code: %d, response: %s", resp.StatusCode, string(respBody))
 	}
 
