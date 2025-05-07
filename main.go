@@ -9,9 +9,12 @@ import (
 	"aigendrug.com/aigendrug-cid-2025-server/app/chat"
 	"aigendrug.com/aigendrug-cid-2025-server/app/tool"
 	"aigendrug.com/aigendrug-cid-2025-server/database"
+	_ "aigendrug.com/aigendrug-cid-2025-server/docs"
 	"github.com/gin-contrib/cors"
 	"github.com/gin-gonic/gin"
 	"github.com/joho/godotenv"
+	swaggerFiles "github.com/swaggo/files"
+	ginSwagger "github.com/swaggo/gin-swagger"
 )
 
 func main() {
@@ -60,6 +63,8 @@ func main() {
 			"status": "ok",
 		})
 	})
+
+	router.GET("/swagger/*any", ginSwagger.WrapHandler(swaggerFiles.Handler))
 
 	go chat.HandleMessages(scyllaSession)
 	go tool.HandleMessages(scyllaSession)

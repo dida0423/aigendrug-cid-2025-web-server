@@ -20,7 +20,7 @@ type ToolService interface {
 	DeleteTool(rctx context.Context, id gocql.UUID) error
 	ReadAllToolMessages(rctx context.Context, sessionID gocql.UUID) ([]*ToolMessage, error)
 	CreateToolMessage(rctx context.Context, dto *CreateToolMessageDTO) error
-	SendRequestToToolServer(rctx context.Context, id gocql.UUID, requestBody []ToolInteractionElement) (string, error)
+	SendRequestToToolServer(rctx context.Context, id gocql.UUID, toolRequestDTO []ToolInteractionElement) (string, error)
 }
 
 type toolService struct {
@@ -136,7 +136,12 @@ func (s *toolService) DeleteTool(rctx context.Context, id gocql.UUID) error {
 
 func (s *toolService) ReadAllToolMessages(rctx context.Context, sessionID gocql.UUID) ([]*ToolMessage, error) {
 	var ToolMessages []*ToolMessage
-	query := s.db.Query("SELECT id, session_id, tool_id, role, data, created_at FROM tool_messages WHERE session_id = ?", sessionID).WithContext(rctx)
+	var query *gocql.Query
+	if sessionID == (gocql.UUID{}) {
+		query = s.db.Query("SELECT id, session_id, tool_id, role, data, created_at FROM tool_messages").WithContext(rctx)
+	} else {
+		query = s.db.Query("SELECT id, session_id, tool_id, role, data, created_at FROM tool_messages WHERE session_id = ?", sessionID).WithContext(rctx)
+	}
 	iter := query.Iter()
 	defer iter.Close()
 
@@ -189,8 +194,7 @@ func (s *toolService) CreateToolMessage(rctx context.Context, dto *CreateToolMes
 	return nil
 }
 
-func (s *toolService) SendRequestToToolServer(rctx context.Context, toolID gocql.UUID, requestBody []ToolInteractionElement) (string, error) {
-	//modify user RequestBody [{interface_id: "number1", content: "10"}, {interface_id: "number2", content: "20"}, {interface_id: "operation", content: "+"}]
+func (s *toolService) SendRequestToToolServer(rctx context.Context, toolID gocql.UUID, toolRequestDTO []ToolInteractionElement) (string, error) {
 	tool, err := s.ReadTool(rctx, toolID)
 	if err != nil {
 		return "", fmt.Errorf("failed to read tool: %w", err)
@@ -201,7 +205,7 @@ func (s *toolService) SendRequestToToolServer(rctx context.Context, toolID gocql
 
 	requestBodyMap := make(map[string]any)
 	for _, field := range tool.ProviderInterface.RequestInterface {
-		content, err := BodyRequestHelper(requestBody, field.ID)
+		content, err := BodyRequestHelper(toolRequestDTO, field.ID)
 		if err != nil {
 			return "", fmt.Errorf("failed to get value for field %s", field.ID)
 		}
@@ -237,6 +241,7 @@ func (s *toolService) SendRequestToToolServer(rctx context.Context, toolID gocql
 	}
 
 	req, err := http.NewRequest(tool.ProviderInterface.RequestMethod, tool.ProviderInterface.URL, bytes.NewBuffer(requestBodyJSON))
+	// println("Request Body: ", string(requestBodyJSON))
 	if err != nil {
 		return "", fmt.Errorf("failed to create HTTP request: %w", err)
 	}

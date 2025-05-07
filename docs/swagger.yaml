@@ -1,0 +1,574 @@
+definitions:
+  chat.ChatMessage:
+    properties:
+      created_at:
+        type: string
+      id:
+        type: string
+      linked_tool_ids:
+        items:
+          type: string
+        type: array
+      message:
+        type: string
+      message_type:
+        type: integer
+      role:
+        enum:
+        - user
+        - assistant
+        - system
+        type: string
+      session_id:
+        type: string
+    required:
+    - role
+    type: object
+  chat.CreateChatMessageDTO:
+    properties:
+      linked_tool_ids:
+        items:
+          type: string
+        type: array
+      message:
+        type: string
+      message_type:
+        type: integer
+      role:
+        description: 'Enum: "user", "assistant", "system"'
+        type: string
+      session_id:
+        type: string
+    type: object
+  session.Session:
+    properties:
+      assigned_tool_id:
+        type: string
+      created_at:
+        type: string
+      id:
+        type: string
+      name:
+        type: string
+      status:
+        type: string
+      tool_status:
+        type: string
+    type: object
+  tool.BindedElementType:
+    properties:
+      htmlElementType:
+        type: string
+      label:
+        type: string
+      valueType:
+        enum:
+        - string
+        - number
+        - boolean
+        type: string
+    required:
+    - htmlElementType
+    - label
+    - valueType
+    type: object
+  tool.CreateToolDTO:
+    properties:
+      description:
+        type: string
+      id:
+        type: string
+      name:
+        type: string
+      provider_interface:
+        $ref: '#/definitions/tool.ProviderInterface'
+      version:
+        type: string
+    required:
+    - description
+    - id
+    - name
+    - provider_interface
+    type: object
+  tool.CreateToolMessageDTO:
+    properties:
+      data:
+        additionalProperties: {}
+        type: object
+      role:
+        type: string
+      session_id:
+        type: string
+      tool_id:
+        type: string
+    type: object
+  tool.InterfaceElement:
+    properties:
+      bindedElementType:
+        $ref: '#/definitions/tool.BindedElementType'
+      id:
+        type: string
+      key:
+        type: string
+      required:
+        type: boolean
+      type:
+        enum:
+        - body
+        - query
+        - header
+        type: string
+      valueType:
+        enum:
+        - string
+        - number
+        - boolean
+        type: string
+    required:
+    - bindedElementType
+    - id
+    - key
+    - type
+    - valueType
+    type: object
+  tool.ProviderInterface:
+    properties:
+      authStrategy:
+        type: string
+      requestContentType:
+        type: string
+      requestInterface:
+        items:
+          $ref: '#/definitions/tool.InterfaceElement'
+        minItems: 1
+        type: array
+      requestMethod:
+        enum:
+        - GET
+        - POST
+        - PUT
+        - DELETE
+        type: string
+      responseContentType:
+        type: string
+      responseInterface:
+        items:
+          $ref: '#/definitions/tool.InterfaceElement'
+        minItems: 1
+        type: array
+      url:
+        type: string
+    required:
+    - authStrategy
+    - requestContentType
+    - requestInterface
+    - requestMethod
+    - responseContentType
+    - responseInterface
+    type: object
+  tool.Tool:
+    properties:
+      created_at:
+        type: string
+      description:
+        type: string
+      id:
+        type: string
+      name:
+        type: string
+      provider_interface:
+        $ref: '#/definitions/tool.ProviderInterface'
+      version:
+        type: string
+    type: object
+  tool.ToolInteractionElement:
+    properties:
+      content: {}
+      interface_id:
+        type: string
+    required:
+    - content
+    - interface_id
+    type: object
+  tool.ToolMessage:
+    properties:
+      created_at:
+        type: string
+      data:
+        additionalProperties: {}
+        type: object
+      id:
+        type: string
+      role:
+        type: string
+      session_id:
+        type: string
+      tool_id:
+        type: string
+    type: object
+info:
+  contact: {}
+paths:
+  /v1/chat/message:
+    post:
+      consumes:
+      - application/json
+      description: Create a new chat message
+      parameters:
+      - description: Create Chat Message DTO
+        in: body
+        name: chatMessage
+        required: true
+        schema:
+          $ref: '#/definitions/chat.CreateChatMessageDTO'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/chat.CreateChatMessageDTO'
+        "500":
+          description: Internal Server Error
+          schema:
+            additionalProperties: true
+            type: object
+      summary: Create a new chat message
+      tags:
+      - Chat
+  /v1/chat/message/{sessionID}:
+    get:
+      consumes:
+      - application/json
+      description: Get all chat messages for a session
+      parameters:
+      - description: Session ID
+        in: path
+        name: sessionID
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            items:
+              $ref: '#/definitions/chat.ChatMessage'
+            type: array
+        "500":
+          description: Internal Server Error
+          schema:
+            additionalProperties: true
+            type: object
+      summary: Get all chat messages for a session
+      tags:
+      - Chat
+  /v1/session:
+    get:
+      consumes:
+      - application/json
+      description: Get all sessions
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            items:
+              $ref: '#/definitions/session.Session'
+            type: array
+        "500":
+          description: Internal Server Error
+          schema:
+            additionalProperties: true
+            type: object
+      summary: Get all sessions
+      tags:
+      - Sessions
+  /v1/session/{id}:
+    delete:
+      description: Delete a session by its ID
+      parameters:
+      - description: Session ID
+        in: path
+        name: id
+        required: true
+        type: string
+      responses:
+        "200":
+          description: OK
+          schema:
+            additionalProperties: true
+            type: object
+        "400":
+          description: Bad Request
+          schema:
+            additionalProperties: true
+            type: object
+        "500":
+          description: Internal Server Error
+          schema:
+            additionalProperties: true
+            type: object
+      summary: Delete a session
+      tags:
+      - Sessions
+  /v1/session/{name}:
+    post:
+      consumes:
+      - application/json
+      description: Create a session with the given name
+      parameters:
+      - description: Session Name
+        in: path
+        name: name
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/session.Session'
+        "500":
+          description: Internal Server Error
+          schema:
+            additionalProperties: true
+            type: object
+      summary: Create a new session
+      tags:
+      - Sessions
+  /v1/tool:
+    post:
+      consumes:
+      - application/json
+      description: Create a new tool
+      parameters:
+      - description: Tool
+        in: body
+        name: dto
+        required: true
+        schema:
+          $ref: '#/definitions/tool.CreateToolDTO'
+      produces:
+      - application/json
+      responses:
+        "201":
+          description: Created
+          schema:
+            $ref: '#/definitions/tool.CreateToolDTO'
+        "400":
+          description: Bad Request
+          schema:
+            additionalProperties: true
+            type: object
+        "500":
+          description: Internal Server Error
+          schema:
+            additionalProperties: true
+            type: object
+      summary: Create a new tool
+      tags:
+      - Tools
+  /v1/tool/:
+    get:
+      consumes:
+      - application/json
+      description: Get all tools
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            items:
+              $ref: '#/definitions/tool.Tool'
+            type: array
+        "500":
+          description: Internal Server Error
+          schema:
+            additionalProperties: true
+            type: object
+      summary: Get all tools
+      tags:
+      - Tools
+  /v1/tool/{id}:
+    delete:
+      consumes:
+      - application/json
+      description: Delete a tool by ID
+      parameters:
+      - description: Tool ID
+        in: path
+        name: id
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "204":
+          description: No Content
+        "400":
+          description: Bad Request
+          schema:
+            additionalProperties: true
+            type: object
+        "500":
+          description: Internal Server Error
+          schema:
+            additionalProperties: true
+            type: object
+      summary: Delete a tool
+      tags:
+      - Tools
+    get:
+      consumes:
+      - application/json
+      description: Get a tool by ID
+      parameters:
+      - description: Tool ID
+        in: path
+        name: id
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/tool.Tool'
+        "500":
+          description: Internal Server Error
+          schema:
+            additionalProperties: true
+            type: object
+      summary: Get a tool by ID
+      tags:
+      - Tools
+  /v1/tool/messages:
+    post:
+      consumes:
+      - application/json
+      description: Create a new tool message
+      parameters:
+      - description: tool message
+        in: body
+        name: dto
+        required: true
+        schema:
+          $ref: '#/definitions/tool.CreateToolMessageDTO'
+      produces:
+      - application/json
+      responses:
+        "201":
+          description: Created
+          schema:
+            $ref: '#/definitions/tool.CreateToolMessageDTO'
+        "400":
+          description: Bad Request
+          schema:
+            additionalProperties: true
+            type: object
+        "500":
+          description: Internal Server Error
+          schema:
+            additionalProperties: true
+            type: object
+      summary: Create a new tool message
+      tags:
+      - Tools
+  /v1/tool/messages/:
+    get:
+      consumes:
+      - application/json
+      description: Get all tool messages
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            items:
+              $ref: '#/definitions/tool.ToolMessage'
+            type: array
+        "500":
+          description: Internal Server Error
+          schema:
+            additionalProperties: true
+            type: object
+      summary: Get all tool messages
+      tags:
+      - Tools
+  /v1/tool/messages/{session_id}:
+    get:
+      consumes:
+      - application/json
+      description: Get all tool messages for a session
+      parameters:
+      - description: Session ID
+        in: path
+        name: session_id
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            items:
+              $ref: '#/definitions/tool.ToolMessage'
+            type: array
+        "500":
+          description: Internal Server Error
+          schema:
+            additionalProperties: true
+            type: object
+      summary: Get all tool messages for a session
+      tags:
+      - Tools
+  /v1/tool/send_request/{id}:
+    post:
+      consumes:
+      - application/json
+      description: Send a request to the tool server
+      parameters:
+      - description: Tool ID
+        in: path
+        name: id
+        required: true
+        type: string
+      - description: Request Body
+        in: body
+        name: request
+        required: true
+        schema:
+          items:
+            $ref: '#/definitions/tool.ToolInteractionElement'
+          type: array
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            items:
+              $ref: '#/definitions/tool.ToolInteractionElement'
+            type: array
+        "400":
+          description: Bad Request
+          schema:
+            additionalProperties: true
+            type: object
+        "500":
+          description: Internal Server Error
+          schema:
+            additionalProperties: true
+            type: object
+      summary: Send a request to the tool server
+      tags:
+      - Tools
+swagger: "2.0"
