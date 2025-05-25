@@ -4,7 +4,7 @@ import (
 	"net/http"
 
 	"github.com/gin-gonic/gin"
-	gocql "github.com/gocql/gocql"
+	"github.com/google/uuid"
 )
 
 type ChatController struct {
@@ -16,7 +16,8 @@ func NewChatController(ChatService ChatService) *ChatController {
 }
 
 func (cc *ChatController) GetChatMessages(c *gin.Context) {
-	sessionID, err := gocql.ParseUUID(c.Param("sessionID"))
+	sessionID, err := uuid.Parse(c.Param("sessionID"))
+
 	if err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
 		return

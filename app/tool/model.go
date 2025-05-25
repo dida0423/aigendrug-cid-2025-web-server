@@ -3,7 +3,7 @@ package tool
 import (
 	"time"
 
-	gocql "github.com/gocql/gocql"
+	"github.com/google/uuid"
 )
 
 const (
@@ -13,7 +13,7 @@ const (
 )
 
 type Tool struct {
-	ID                gocql.UUID        `json:"id"`
+	ID                uuid.UUID         `json:"id"`
 	Name              string            `json:"name"`
 	Version           string            `json:"version"`
 	Description       string            `json:"description"`
@@ -22,7 +22,7 @@ type Tool struct {
 }
 
 type CreateToolDTO struct {
-	ID                gocql.UUID        `json:"id" validate:"required"`
+	ID                uuid.UUID         `json:"id" validate:"required"`
 	Name              string            `json:"name" validate:"required"`
 	Version           string            `json:"version"`
 	Description       string            `json:"description" validate:"required"`
@@ -30,17 +30,17 @@ type CreateToolDTO struct {
 }
 
 type ToolMessage struct {
-	ID        gocql.UUID     `json:"id"`
-	SessionID gocql.UUID     `json:"session_id"`
-	ToolID    gocql.UUID     `json:"tool_id"`
+	ID        uuid.UUID      `json:"id"`
+	SessionID uuid.UUID      `json:"session_id"`
+	ToolID    uuid.UUID      `json:"tool_id"`
 	Role      string         `json:"role"`
 	Data      map[string]any `json:"data"`
 	CreatedAt time.Time      `json:"created_at"`
 }
 
 type CreateToolMessageDTO struct {
-	SessionID gocql.UUID     `json:"session_id"`
-	ToolID    gocql.UUID     `json:"tool_id"`
+	SessionID uuid.UUID      `json:"session_id"`
+	ToolID    uuid.UUID      `json:"tool_id"`
 	Role      string         `json:"role"`
 	Data      map[string]any `json:"data"`
 }

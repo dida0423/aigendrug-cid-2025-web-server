@@ -4,10 +4,10 @@ import (
 	"context"
 
 	"github.com/gin-gonic/gin"
-	gocql "github.com/gocql/gocql"
+	"github.com/jackc/pgx/v5/pgxpool"
 )
 
-func SetupToolRoutes(c context.Context, router *gin.Engine, db *gocql.Session) {
+func SetupToolRoutes(c context.Context, router *gin.Engine, db *pgxpool.Pool) {
 	toolService := NewToolService(c, db)
 	toolController := NewToolController(toolService)
 

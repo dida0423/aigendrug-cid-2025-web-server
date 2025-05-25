@@ -39,7 +39,11 @@ func main() {
 
 	ctx := context.Background()
 
-	scyllaSession := database.NewScyllaSession()
+	pool, err := database.NewPostgresPool(ctx)
+	if err != nil {
+		panic(fmt.Sprintf("Failed to connect to database: %v", err))
+	}
+	defer pool.Close()
 
 	router.Use(cors.New(cors.Config{
 		AllowOrigins: []string{
@@ -61,10 +65,11 @@ func main() {
 		})
 	})
 
-	go chat.HandleMessages(scyllaSession)
-	go tool.HandleMessages(scyllaSession)
+	go chat.HandleMessages(pool)
+	go tool.HandleMessages(pool)
 
-	app.SetupRoutes(ctx, router, scyllaSession)
+	app.SetupRoutes(ctx, router, pool)
 
+	//
 	router.Run(fmt.Sprintf(":%s", port))
 }

@@ -4,10 +4,10 @@ import (
 	"context"
 
 	"github.com/gin-gonic/gin"
-	gocql "github.com/gocql/gocql"
+	"github.com/jackc/pgx/v5/pgxpool"
 )
 
-func SetupChatRoutes(c context.Context, router *gin.Engine, db *gocql.Session) {
+func SetupChatRoutes(c context.Context, router *gin.Engine, db *pgxpool.Pool) {
 	chatService := NewChatService(c, db)
 	chatController := NewChatController(chatService)
 
