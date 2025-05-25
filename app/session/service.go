@@ -4,40 +4,48 @@ import (
 	"context"
 	"time"
 
-	gocql "github.com/gocql/gocql"
+	"github.com/google/uuid"
+	"github.com/jackc/pgx/v5/pgxpool"
 )
 
 type SessionService interface {
 	ReadAllSessions(rctx context.Context) ([]*Session, error)
 	CreateSession(rctx context.Context, name string) (*Session, error)
-	DeleteSession(rctx context.Context, id gocql.UUID) error
+	DeleteSession(rctx context.Context, id uuid.UUID) error
 }
 
 type sessionService struct {
 	ctx context.Context
-	db  *gocql.Session
+	db  *pgxpool.Pool
 }
 
-func NewSessionService(c context.Context, db *gocql.Session) SessionService {
+func NewSessionService(c context.Context, db *pgxpool.Pool) SessionService {
 	return &sessionService{ctx: c, db: db}
 }
 
 func (s *sessionService) ReadAllSessions(rctx context.Context) ([]*Session, error) {
+	rows, err := s.db.Query(rctx, `
+        SELECT id, name, status, tool_status, assigned_tool_id, created_at
+        FROM sessions
+    `)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
 	var sessions []*Session
-	query := s.db.Query("SELECT id, name, status, tool_status, assigned_tool_id, created_at FROM sessions").WithContext(rctx)
-
-	iter := query.Iter()
-
-	for {
+	for rows.Next() {
 		var session Session
-		if !iter.Scan(&session.ID,
+		err := rows.Scan(
+			&session.ID,
 			&session.Name,
 			&session.Status,
 			&session.ToolStatus,
 			&session.AssignedToolID,
 			&session.CreatedAt,
-		) {
-			break
+		)
+		if err != nil {
+			return nil, err
 		}
 		sessions = append(sessions, &session)
 	}
@@ -46,26 +54,18 @@ func (s *sessionService) ReadAllSessions(rctx context.Context) ([]*Session, erro
 		return []*Session{}, nil
 	}
 
-	if err := iter.Close(); err != nil {
-		return nil, err
-	}
-
 	return sessions, nil
 }
 
 func (s *sessionService) CreateSession(rctx context.Context, name string) (*Session, error) {
-	newUUID, err := gocql.RandomUUID()
-	if err != nil {
-		return nil, err
-	}
+	newUUID := uuid.New()
+	createdAt := time.Now()
 
-	if err := s.db.Query(`
-		INSERT INTO 
-			sessions
-			(id, name, status, created_at) 
-		VALUES 
-			(?, ?, ?, toTimeStamp(now()))`,
-		newUUID, name, SessionStatusActive).WithContext(rctx).Exec(); err != nil {
+	_, err := s.db.Exec(rctx, `
+        INSERT INTO sessions (id, name, status, created_at)
+        VALUES ($1, $2, $3, $4)
+    `, newUUID, name, SessionStatusActive, createdAt)
+	if err != nil {
 		return nil, err
 	}
 
@@ -74,15 +74,12 @@ func (s *sessionService) CreateSession(rctx context.Context, name string) (*Sess
 		Name:           name,
 		Status:         "active",
 		ToolStatus:     "",
-		AssignedToolID: gocql.UUID{},
+		AssignedToolID: uuid.UUID{},
 		CreatedAt:      time.Now(),
 	}, nil
 }
 
-func (s *sessionService) DeleteSession(rctx context.Context, id gocql.UUID) error {
-	if err := s.db.Query("DELETE FROM sessions WHERE id = ?", id).WithContext(rctx).Exec(); err != nil {
-		return err
-	}
-
-	return nil
+func (s *sessionService) DeleteSession(rctx context.Context, id uuid.UUID) error {
+	_, err := s.db.Exec(rctx, "DELETE FROM sessions WHERE id = $1", id)
+	return err
 }

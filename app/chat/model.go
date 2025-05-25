@@ -3,7 +3,7 @@ package chat
 import (
 	"time"
 
-	gocql "github.com/gocql/gocql"
+	"github.com/google/uuid"
 )
 
 const (
@@ -20,19 +20,19 @@ const (
 )
 
 type ChatMessage struct {
-	ID            gocql.UUID   `json:"id"`
-	SessionID     gocql.UUID   `json:"session_id"`
-	Role          string       `json:"role"`
-	Message       string       `json:"message"`
-	CreatedAt     time.Time    `json:"created_at"`
-	MessageType   int          `json:"message_type"`
-	LinkedToolIDs []gocql.UUID `json:"linked_tool_ids"`
+	ID            uuid.UUID   `json:"id"`
+	SessionID     uuid.UUID   `json:"session_id"`
+	Role          string      `json:"role"`
+	Message       string      `json:"message"`
+	CreatedAt     time.Time   `json:"created_at"`
+	MessageType   int         `json:"message_type"`
+	LinkedToolIDs []uuid.UUID `json:"linked_tool_ids"`
 }
 
 type CreateChatMessageDTO struct {
-	SessionID     gocql.UUID   `json:"session_id"`
-	Role          string       `json:"role"`
-	Message       string       `json:"message"`
-	MessageType   int          `json:"message_type"`
-	LinkedToolIDs []gocql.UUID `json:"linked_tool_ids"`
+	SessionID     uuid.UUID   `json:"session_id"`
+	Role          string      `json:"role"`
+	Message       string      `json:"message"`
+	MessageType   int         `json:"message_type"`
+	LinkedToolIDs []uuid.UUID `json:"linked_tool_ids"`
 }

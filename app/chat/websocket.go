@@ -9,8 +9,9 @@ import (
 
 	toolrouter "aigendrug.com/aigendrug-cid-2025-server/tool-router"
 	"github.com/gin-gonic/gin"
-	"github.com/gocql/gocql"
+	"github.com/google/uuid"
 	"github.com/gorilla/websocket"
+	"github.com/jackc/pgx/v5/pgxpool"
 	"github.com/openai/openai-go"
 )
 
@@ -66,7 +67,7 @@ func generateAIResponse(message string) (string, string) {
 	return chatCompletion.Choices[0].Message.Content, tool.ToolID.String()
 }
 
-func WebSocketHandler(c *gin.Context, db *gocql.Session) {
+func WebSocketHandler(c *gin.Context, db *pgxpool.Pool) {
 	sessionID := c.Query("sessionID")
 	if sessionID == "" {
 		c.JSON(400, gin.H{"error": "sessionID is required"})
@@ -119,16 +120,12 @@ func WebSocketHandler(c *gin.Context, db *gocql.Session) {
 	}
 }
 
-func saveChatMessageToDB(db *gocql.Session, msg *CreateChatMessageDTO) error {
-	newUUID, err := gocql.RandomUUID()
-	if err != nil {
-		return err
-	}
+func saveChatMessageToDB(db *pgxpool.Pool, msg *CreateChatMessageDTO) error {
+	newUUID := uuid.New()
 
-	query := db.Query("INSERT INTO chat_messages (id, session_id, role, message, created_at, message_type, linked_tool_ids) VALUES (?, ?, ?, ?, toTimestamp(now()), ?, ?)",
+	_, err := db.Exec(context.Background(), "INSERT INTO chat_messages (id, session_id, role, message, created_at, message_type, linked_tool_ids) VALUES ($1, $2, $3, $4, now(), $5, $6)",
 		newUUID, msg.SessionID, msg.Role, msg.Message, msg.MessageType, msg.LinkedToolIDs)
-
-	if err := query.Exec(); err != nil {
+	if err != nil {
 		return err
 	}
 
@@ -136,7 +133,7 @@ func saveChatMessageToDB(db *gocql.Session, msg *CreateChatMessageDTO) error {
 }
 
 // Read messages from the broadcast channel and send them to all clients in the session
-func HandleMessages(db *gocql.Session) {
+func HandleMessages(db *pgxpool.Pool) {
 	for {
 		msg := <-broadcast
 

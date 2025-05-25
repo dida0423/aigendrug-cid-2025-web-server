@@ -8,7 +8,7 @@ import (
 	"net/http"
 	"os"
 
-	"github.com/gocql/gocql"
+	"github.com/google/uuid"
 )
 
 type ToolRouterService interface {
@@ -49,7 +49,7 @@ func (trs *toolRouterService) SelectTool(prompt string) (*SelectedTool, error) {
 		return nil, err
 	}
 
-	toolID, err := gocql.ParseUUID(response.SelectedToolID)
+	toolID, err := uuid.Parse(response.SelectedToolID)
 	if err != nil {
 		return nil, fmt.Errorf("invalid tool ID format: %s", err)
 	}

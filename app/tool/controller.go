@@ -4,7 +4,7 @@ import (
 	"net/http"
 
 	"github.com/gin-gonic/gin"
-	"github.com/gocql/gocql"
+	"github.com/google/uuid"
 )
 
 type ToolController struct {
@@ -25,7 +25,7 @@ func (sc *ToolController) GetTools(c *gin.Context) {
 }
 
 func (sc *ToolController) GetTool(c *gin.Context) {
-	toolID, err := gocql.ParseUUID(c.Param("id"))
+	toolID, err := uuid.Parse(c.Param("id"))
 	if err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
 		return
@@ -55,7 +55,7 @@ func (sc *ToolController) CreateTool(c *gin.Context) {
 }
 
 func (sc *ToolController) DeleteTool(c *gin.Context) {
-	toolID, err := gocql.ParseUUID(c.Param("id"))
+	toolID, err := uuid.Parse(c.Param("id"))
 	if err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
 		return
@@ -70,7 +70,7 @@ func (sc *ToolController) DeleteTool(c *gin.Context) {
 }
 
 func (sc *ToolController) GetToolMessages(c *gin.Context) {
-	sessionID, err := gocql.ParseUUID(c.Param("session_id"))
+	sessionID, err := uuid.Parse(c.Param("session_id"))
 	if err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
 		return
@@ -100,7 +100,7 @@ func (sc *ToolController) CreateToolMessage(c *gin.Context) {
 }
 
 func (sc *ToolController) SendRequestToToolServer(c *gin.Context) {
-	toolID, err := gocql.ParseUUID(c.Param("id"))
+	toolID, err := uuid.Parse(c.Param("id"))
 	if err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
 		return

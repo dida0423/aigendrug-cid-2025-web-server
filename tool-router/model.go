@@ -1,6 +1,6 @@
 package toolrouter
 
-import "github.com/gocql/gocql"
+import "github.com/google/uuid"
 
 type SelectToolRequestDTO struct {
 	UserPrompt string `json:"user_prompt"`
@@ -12,6 +12,6 @@ type SelectToolResponseDTO struct {
 }
 
 type SelectedTool struct {
-	ToolName string     `json:"tool_name"`
-	ToolID   gocql.UUID `json:"tool_id"`
+	ToolName string    `json:"tool_name"`
+	ToolID   uuid.UUID `json:"tool_id"`
 }
