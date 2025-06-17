@@ -1,3 +1,12 @@
-FROM scylladb/scylla
+FROM postgres:16
 
-CMD ["--smp", "1", "--memory", "1G", "--overprovisioned", "1", "--api-address", "0.0.0.0"]
+ARG MAIN_DB_USER
+ARG MAIN_DB_PASSWORD
+ARG MAIN_DB_NAME
+ARG MAIN_DB_PORT
+ARG MAIN_DB_HOST
+ARG MAIN_DB_SCHEMA
+
+COPY sql/init.sql /docker-entrypoint-initdb.d/
+
+CMD ["postgres"]

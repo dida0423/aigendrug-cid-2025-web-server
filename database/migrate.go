@@ -5,6 +5,7 @@ import (
 	_ "embed"
 	"fmt"
 
+	"github.com/jackc/pgx/v5/pgconn"
 	"github.com/jackc/pgx/v5/pgxpool"
 )
 
@@ -37,8 +38,11 @@ func AutoMigrateFromConnectionString(ctx context.Context, connectionString strin
 
 	_, err = dbTarget.Exec(ctx, initial_sql)
 	if err != nil {
-		println(err.Error())
-		return false, err
+		if pgErr, ok := err.(*pgconn.PgError); ok {
+			if pgErr.Code != "42P07" {
+				return false, err
+			}
+		}
 	}
 	println("Database initialized successfully")
 
