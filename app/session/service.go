@@ -68,13 +68,13 @@ func (s *sessionService) CreateSession(rctx context.Context, name string) (*Sess
 	if err != nil {
 		return nil, err
 	}
-
+	toolStatus := ""
 	return &Session{
 		ID:             newUUID,
 		Name:           name,
 		Status:         "active",
-		ToolStatus:     "",
-		AssignedToolID: uuid.UUID{},
+		ToolStatus:     &toolStatus,
+		AssignedToolID: nil,
 		CreatedAt:      time.Now(),
 	}, nil
 }
