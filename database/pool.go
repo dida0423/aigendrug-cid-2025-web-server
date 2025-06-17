@@ -8,13 +8,13 @@ import (
 )
 
 func NewPostgresPool(c context.Context) (*pgxpool.Pool, error) {
-	config, err := ParsePostgresConnectionString(os.Getenv("MAIN_DB_HOST"))
+	config, err := ParsePostgresConnectionString(os.Getenv("DB_CONNECTION_STRING"))
 
 	if err != nil {
 		return nil, err
 	}
 
-	AutoMigrateFromConnectionString(c, os.Getenv("MAIN_DB_HOST"), config)
+	AutoMigrateFromConnectionString(c, os.Getenv("DB_CONNECTION_STRING"), config)
 
 	dbpool, err := pgxpool.NewWithConfig(c, config)
 
